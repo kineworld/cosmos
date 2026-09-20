@@ -1,3 +1,5 @@
+> **勘境 / KineWorld research fork:** 感谢原作者的开源贡献。See [KINEWORLD.md](KINEWORLD.md) for acknowledgements, our changes and validation limits. Original authorship and licenses are preserved.
+
 # Cosmos
 
 <p align="center">

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import multiprocessing as mp
 import os
 import queue
@@ -14,7 +15,16 @@ from pathlib import Path
 from statistics import fmean
 
 
-RUNNER_VERSION = 2
+RUNNER_VERSION = 3
+
+
+def finite_score(value: object) -> float:
+    if isinstance(value, bool):
+        raise ValueError("motion-smoothness score cannot be boolean")
+    score = float(value)
+    if not math.isfinite(score):
+        raise ValueError("motion-smoothness score must be finite")
+    return score
 
 
 def parse_args() -> argparse.Namespace:
@@ -45,7 +55,7 @@ def read_records(path: Path) -> list[dict]:
 def write_json_atomic(path: Path, value: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
-    temporary.write_text(json.dumps(value, indent=2) + "\n")
+    temporary.write_text(json.dumps(value, indent=2, allow_nan=False) + "\n")
     os.replace(temporary, path)
 
 
@@ -119,7 +129,7 @@ def collect_saved_records(output_dir: Path) -> dict[str, dict]:
             video_path = str(Path(record["video_path"]).absolute())
             normalized = {
                 "video_path": video_path,
-                "video_results": float(record["video_results"]),
+                "video_results": finite_score(record["video_results"]),
             }
             if video_path in by_video:
                 raise ValueError(f"duplicate saved score for {video_path}")
@@ -157,7 +167,7 @@ def worker_main(
             if video_path is None:
                 break
             try:
-                score = float(motion.motion_score(video_path))
+                score = finite_score(motion.motion_score(video_path))
                 records.append({"video_path": video_path, "video_results": score})
                 write_json_atomic(output_path, records)
                 status_queue.put(("done", worker_id, video_path, score))
